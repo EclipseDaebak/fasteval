@@ -28,8 +28,8 @@ use crate::compiler::Instruction::IUnsafeVar;
 use std::collections::BTreeSet;
 use std::f64::consts;
 use std::fmt;
-
-
+use crate::Instruction::IFuncIf;
+use crate::parser::StdFunc::EFuncIf;
 
 /// The same as `evaler.eval(&slab, &mut ns)`, but more efficient for common cases.
 ///
@@ -408,6 +408,11 @@ impl Evaler for StdFunc {
                     get_expr!(slab.ps,xi)._var_names(slab,dst);
                 }
             }
+            EFuncIf {cond:ci, then:ti, els:ei} => {
+                get_expr!(slab.ps,ci )._var_names(slab,dst);
+                get_expr!(slab.ps,ti)._var_names(slab,dst);
+                get_expr!(slab.ps,ei)._var_names(slab,dst);
+            }
         };
     }
     fn eval(&self, slab:&Slab, ns:&mut impl EvalNamespace) -> Result<f64,Error> {
@@ -425,6 +430,14 @@ impl Evaler for StdFunc {
                     args.push(get_expr!(slab.ps,xi).eval(slab,ns)?)
                 }
                 eval_var!(ns, name, args, unsafe { &mut *slab.ps.char_buf.get() })
+            }
+
+            EFuncIf {cond:ci, then:ti, els:ei} => {
+                if f64_ne!(get_expr!(slab.ps,ci).eval(slab,ns)?,0.0) {
+                    get_expr!(slab.ps,ti).eval(slab,ns)
+                } else {
+                    get_expr!(slab.ps,ei).eval(slab,ns)
+                }
             }
 
             EFuncLog{base:base_opt, expr:expr_i} => {
@@ -561,6 +574,13 @@ impl Evaler for Instruction {
             }
 
             IPrintFunc(pf) => pf._var_names(slab,dst),
+
+            IFuncIf{cond, then, els} => {
+                let mut iconst : Instruction;
+                ic_to_instr!(slab.cs,iconst,cond)._var_names(slab,dst);
+                ic_to_instr!(slab.cs,iconst,then)._var_names(slab,dst);
+                ic_to_instr!(slab.cs,iconst,els)._var_names(slab,dst);
+            }
         }
     }
     fn eval(&self, slab:&Slab, ns:&mut impl EvalNamespace) -> Result<f64,Error> {
@@ -592,6 +612,15 @@ impl Evaler for Instruction {
                 }
                 eval_var!(ns, name, args, unsafe { &mut *slab.ps.char_buf.get() })
             },
+
+            IFuncIf {cond, then, els} => {
+                let condition_result = eval_ic_ref!(cond, slab, ns);
+                if condition_result != 0.0 {
+                    Ok(eval_ic_ref!(then, slab, ns))
+                } else {
+                    Ok(eval_ic_ref!(els, slab, ns))
+                }
+            }
 
             IFuncLog{base:baseic, of:ofic} => {
                 let base = eval_ic_ref!(baseic, slab, ns);
