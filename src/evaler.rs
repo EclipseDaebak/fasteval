@@ -424,7 +424,7 @@ impl Evaler for StdFunc {
             #[cfg(feature="unsafe-vars")]
             EUnsafeVar{ptr, ..} => unsafe { Ok(**ptr) },
 
-            EVar(name) => eval_var!(ns, name, Vec::new(), unsafe{ &mut *slab.ps.char_buf.get() }),
+            EVar(name) => eval_var!(ns, name, Vec::new(), unsafe{ &mut *(&slab.ps.char_buf as *const _ as *mut _) }),
             ETargetVar(name) => {
                 match tc.lookup(name) {
                     Some(f) => Ok(f),
@@ -436,7 +436,7 @@ impl Evaler for StdFunc {
                 for xi in xis {
                     args.push(get_expr!(slab.ps,xi).eval(slab,ns, tc)?)
                 }
-                eval_var!(ns, name, args, unsafe { &mut *slab.ps.char_buf.get() })
+                eval_var!(ns, name, args, unsafe{ &mut *(&slab.ps.char_buf as *const _ as *mut _) })
             }
 
             EFuncIf {cond:ci, then:ti, els:ei} => {
@@ -612,7 +612,7 @@ impl Evaler for Instruction {
             INeg(i) => Ok(-eval_compiled_ref!(get_instr!(slab.cs,i), slab, ns, tc)),
             IInv(i) => Ok(1.0/eval_compiled_ref!(get_instr!(slab.cs,i), slab, ns, tc)),
 
-            IVar(name) => eval_var!(ns, name, Vec::new(), unsafe { &mut *slab.ps.char_buf.get() }),
+            IVar(name) => eval_var!(ns, name, Vec::new(), unsafe{ &mut *(&slab.ps.char_buf as *const _ as *mut _) }),
             ITargetVar(name) => {
                 match tc.lookup(name) {
                     Some(f) => Ok(f),
@@ -624,7 +624,7 @@ impl Evaler for Instruction {
                 for ic in ics {
                     args.push( eval_ic_ref!(ic, slab, ns, tc) );
                 }
-                eval_var!(ns, name, args, unsafe{ &mut *slab.ps.char_buf.get() })
+                eval_var!(ns, name, args, unsafe{ &mut *(&slab.ps.char_buf as *const _ as *mut _) })
             },
 
             IFuncIf {cond, then, els} => {

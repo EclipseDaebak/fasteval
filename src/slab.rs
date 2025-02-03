@@ -36,15 +36,16 @@
 //! fn main() -> Result<(), fasteval::Error> {
 //!     let parser = fasteval::Parser::new();
 //!     let mut slab = fasteval::Slab::new();
+//!     let mut tc = fasteval::evalns::EmptyTargetContext;
 //!
-//!     let val = parser.parse("1+2*3-4", &mut slab.ps)?.from(&slab.ps).eval(&slab, &mut fasteval::EmptyNamespace)?;
+//!     let val = parser.parse("1+2*3-4", &mut slab.ps)?.from(&slab.ps).eval(&slab, &mut fasteval::EmptyNamespace, &tc)?;
 //!     assert_eq!(val, 3.0);
 //!
 //!     // Let's re-use the same slab again to save memory operations.
 //!
 //!     // `parse()` will clear the Slab's data.  It is important that you
 //!     // do not use an old expression after the Slab has been cleared.
-//!     let val = parser.parse("5+6*7-8", &mut slab.ps)?.from(&slab.ps).eval(&slab, &mut fasteval::EmptyNamespace)?;
+//!     let val = parser.parse("5+6*7-8", &mut slab.ps)?.from(&slab.ps).eval(&slab, &mut fasteval::EmptyNamespace, &tc)?;
 //!     assert_eq!(val, 39.0);
 //!
 //!     Ok(())
@@ -58,7 +59,6 @@ use crate::compiler::{Instruction::{self, IConst}, InstructionI};
 
 use std::fmt;
 use std::mem;
-use std::cell::UnsafeCell;
 
 #[cfg(feature="unsafe-vars")]
 use std::collections::BTreeMap;
@@ -216,7 +216,7 @@ pub struct ParseSlab {
     pub(crate) vals       :Vec<Value>,
     pub(crate) def_expr   :Expression,
     pub(crate) def_val    :Value,
-    pub(crate) char_buf   :UnsafeCell<String>,
+    pub(crate) char_buf   :String,
     #[cfg(feature="unsafe-vars")]
     pub(crate) unsafe_vars:BTreeMap<String, *const f64>,
 }
@@ -356,7 +356,7 @@ impl Slab {
                 vals       :Vec::with_capacity(cap),
                 def_expr   :Default::default(),
                 def_val    :Default::default(),
-                char_buf   :UnsafeCell::new(String::with_capacity(64)),
+                char_buf   :String::with_capacity(64),
                 #[cfg(feature="unsafe-vars")]
                 unsafe_vars:BTreeMap::new(),
             },
